@@ -13,13 +13,15 @@ import Order from "../database/models/order.model";
 export async function createUser(user: CreateUserParams) {
   try {
     await connectToDatabase();
-
     const newUser = await User.create(user);
     return JSON.parse(JSON.stringify(newUser));
   } catch (error) {
+    console.error("Error creating user:", error); // Log error
     handleError(error);
+    return null; // Return null or handle as necessary
   }
 }
+
 
 export async function getUserById(userId: string) {
   try {
