@@ -39,6 +39,8 @@ export const connectToDatabase = async (): Promise<Connection> => {
     return cached.conn;
   } catch (error) {
     console.error("Error connecting to MongoDB:", error);
-    throw error;
+    cached.conn = null; // Clear the cached connection on error
+    cached.promise = null; // Clear the cached promise on error
+    throw error; // Propagate the error up
   }
 };
