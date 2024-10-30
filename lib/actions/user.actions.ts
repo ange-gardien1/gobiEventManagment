@@ -1,14 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-
 import { connectToDatabase } from "@/lib/database";
 import User from "@/lib/database/models/user.model";
-
 import Event from "@/lib/database/models/event.model";
+import Order from "../database/models/order.model";
 import { handleError } from "@/lib/utils";
 import { CreateUserParams, UpdateUserParams } from "@/types";
-import Order from "../database/models/order.model";
 
 export async function createUser(user: CreateUserParams) {
   try {
@@ -16,22 +14,24 @@ export async function createUser(user: CreateUserParams) {
     const newUser = await User.create(user);
     return JSON.parse(JSON.stringify(newUser));
   } catch (error) {
-    console.error("Error creating user:", error); // Log error
+    console.error("Error creating user:", error);
     handleError(error);
-    return null; // Return null or handle as necessary
+    return null;
   }
 }
-
 
 export async function getUserById(userId: string) {
   try {
     await connectToDatabase();
-
     const user = await User.findById(userId);
 
-    if (!user) throw new Error("User not found");
+    if (!user) {
+      throw new Error("User not found");
+    }
+
     return JSON.parse(JSON.stringify(user));
   } catch (error) {
+    console.error("Error fetching user by ID:", error);
     handleError(error);
   }
 }
@@ -39,14 +39,15 @@ export async function getUserById(userId: string) {
 export async function updateUser(clerkId: string, user: UpdateUserParams) {
   try {
     await connectToDatabase();
+    const updatedUser = await User.findOneAndUpdate({ clerkId }, user, { new: true });
 
-    const updatedUser = await User.findOneAndUpdate({ clerkId }, user, {
-      new: true,
-    });
+    if (!updatedUser) {
+      throw new Error("User update failed");
+    }
 
-    if (!updatedUser) throw new Error("User update failed");
     return JSON.parse(JSON.stringify(updatedUser));
   } catch (error) {
+    console.error("Error updating user:", error);
     handleError(error);
   }
 }
@@ -54,7 +55,6 @@ export async function updateUser(clerkId: string, user: UpdateUserParams) {
 export async function deleteUser(clerkId: string) {
   try {
     await connectToDatabase();
-
     const userToDelete = await User.findOne({ clerkId });
 
     if (!userToDelete) {
@@ -62,15 +62,8 @@ export async function deleteUser(clerkId: string) {
     }
 
     await Promise.all([
-      Event.updateMany(
-        { _id: { $in: userToDelete.events } },
-        { $pull: { organizer: userToDelete._id } }
-      ),
-
-      Order.updateMany(
-        { _id: { $in: userToDelete.orders } },
-        { $unset: { buyer: 1 } }
-      ),
+      Event.updateMany({ _id: { $in: userToDelete.events } }, { $pull: { organizer: userToDelete._id } }),
+      Order.updateMany({ _id: { $in: userToDelete.orders } }, { $unset: { buyer: 1 } }),
     ]);
 
     const deletedUser = await User.findByIdAndDelete(userToDelete._id);
@@ -78,6 +71,7 @@ export async function deleteUser(clerkId: string) {
 
     return deletedUser ? JSON.parse(JSON.stringify(deletedUser)) : null;
   } catch (error) {
+    console.error("Error deleting user:", error);
     handleError(error);
   }
 }
