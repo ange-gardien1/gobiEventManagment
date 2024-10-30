@@ -17,19 +17,28 @@ const cached: CachedConnection = globalWithMongoose.mongoose || {
 };
 
 export const connectToDatabase = async (): Promise<Connection> => {
-  if (cached.conn) return cached.conn;
+  if (cached.conn) {
+    console.log("Using cached MongoDB connection");
+    return cached.conn;
+  }
 
   if (!MONGODB_URI) throw new Error("MONGODB_URI is missing");
 
-  cached.promise =
-    cached.promise ||
-    (mongoose.connect(MONGODB_URI, {
-      dbName: "gobi",
-      bufferCommands: false,
-    }) as unknown as Promise<Connection>);
+  try {
+    cached.promise =
+      cached.promise ||
+      (mongoose.connect(MONGODB_URI, {
+        dbName: "gobi",
+        bufferCommands: false,
+      }) as unknown as Promise<Connection>);
 
-  cached.conn = await cached.promise;
-  globalWithMongoose.mongoose = cached;
+    cached.conn = await cached.promise;
+    globalWithMongoose.mongoose = cached;
 
-  return cached.conn;
+    console.log("Successfully connected to MongoDB");
+    return cached.conn;
+  } catch (error) {
+    console.error("Error connecting to MongoDB:", error);
+    throw error;
+  }
 };
